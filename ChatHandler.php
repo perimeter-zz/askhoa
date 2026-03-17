@@ -1,34 +1,34 @@
 <?php
 class ChatHandler {
-    private $apiKey;
+    private $key;
 
-    public function __construct($apiKey) {
-        $this->apiKey = $apiKey;
+    public function __construct($key) {
+        $this->key = $key;
     }
 
     public function ask($question, $context) {
-        $systemPrompt = "You are AskHOA. Answer ONLY from the excerpts. If not present, say 'I cannot find that in the documents.'\n\nExcerpts:\n$context";
-        
         $ch = curl_init('https://api.openai.com/v1/chat/completions');
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_POST => true,
-            CURLOPT_HTTPHEADER => [
-                'Content-Type: application/json',
-                'Authorization: Bearer ' . $this->apiKey
-            ],
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Authorization: Bearer ' . $this->key],
             CURLOPT_POSTFIELDS => json_encode([
                 'model' => 'gpt-4o-mini',
                 'messages' => [
-                    ['role' => 'system', 'content' => $systemPrompt],
+                    ['role' => 'system', 'content' => "Answer from excerpts only. If not found, say 'Information not found in excerpts'. End with 'Source: [Page X] / [Section Y]'.\n\nContext:\n$context"],
                     ['role' => 'user', 'content' => $question]
                 ],
-                'temperature' => 0.2
+                'temperature' => 0.1
             ])
         ]);
 
-        $response = curl_exec($ch);
-        $data = json_decode($response, true);
-        return $data['choices'][0]['message']['content'] ?? "Error connecting to AI service.";
+        $res = json_decode(curl_exec($ch), true);
+        $raw = $res['choices'][0]['message']['content'] ?? "Error reaching AI.";
+        
+        $parts = explode('Source:', $raw);
+        return [
+            'answer' => trim($parts[0]),
+            'citation' => isset($parts[1]) ? 'Source:' . trim($parts[1]) : 'Source: [N/A]'
+        ];
     }
 }
