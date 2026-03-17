@@ -4,3 +4,4 @@
 
 # for now, it's standalone at askhoa.org
 
+# on mac now, testing
