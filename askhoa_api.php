@@ -41,6 +41,16 @@ if ($action === 'upload') {
 
 // --- ASK (Fixed Retrieval) ---
 if (!$docId) {
+
+    echo json_encode([
+        'debug' => [
+        'docId' => $docId ?? 'NULL',
+        'storeFile' => $storeFile ?? 'NULL',
+        'file_exists' => file_exists($storeFile),
+        'file_size' => file_exists($storeFile) ? filesize($storeFile) : 0
+            ]
+        ]);
+
     echo json_encode(['answer' => 'Missing document ID. Please re-upload.']);
     exit;
 }
