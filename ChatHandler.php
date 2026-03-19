@@ -15,20 +15,20 @@ class ChatHandler {
             CURLOPT_POSTFIELDS => json_encode([
                 'model' => 'gpt-4o-mini',
                 'messages' => [
-                    ['role' => 'system', 'content' => "Answer from excerpts only. If not found, say 'Information not found in excerpts'. End with 'Source: [Page X] / [Section Y]'.\n\nContext:\n$context"],
-                    ['role' => 'user', 'content' => $question]
+                    ['role' => 'system', 'content' => "You are an expert on HOA CC&Rs and bylaws.\n\nAnswer ONLY using the excerpts below. Quote the exact rule when possible.\nIf the information is not in the excerpts, reply exactly: 'Information not found in the provided document excerpts.'\nNever guess or use outside knowledge.\n\nAt the very end of your answer, on its own line, add:\nSource: [section title or 'document text']"],
+                    ['role' => 'user', 'content' => $question . "\n\nExcerpts:\n" . $context]
                 ],
-                'temperature' => 0.1
+                'temperature' => 0.0
             ])
         ]);
 
         $res = json_decode(curl_exec($ch), true);
         $raw = $res['choices'][0]['message']['content'] ?? "Error reaching AI.";
         
-        $parts = explode('Source:', $raw);
+        $parts = explode('Source:', $raw, 2);
         return [
             'answer' => trim($parts[0]),
-            'citation' => isset($parts[1]) ? 'Source:' . trim($parts[1]) : 'Source: [N/A]'
+            'citation' => isset($parts[1]) ? 'Source:' . trim($parts[1]) : 'Source: [document text]'
         ];
     }
 }

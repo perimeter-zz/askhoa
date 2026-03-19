@@ -36,22 +36,31 @@ if ($action === 'ask') {
 
     // Smart Keyword Search: Score chunks based on question words
     $scoredChunks = [];
-    $keywords = explode(' ', preg_replace('/[^a-z0-9 ]/', '', $question));
+    $questionLower = strtolower($question);
+    $keywords = explode(' ', preg_replace('/[^a-z0-9 ]/', '', $questionLower));
     
     foreach ($data as $chunk) {
-        $score = 0;
         $chunkText = strtolower($chunk['text']);
+        $score = 0;
+        
+        // Bonus for exact phrase match
+        if (strpos($chunkText, $questionLower) !== false) $score += 20;
+        
+        // Word matches with count weighting
         foreach ($keywords as $word) {
-            if (strlen($word) > 3 && strpos($chunkText, $word) !== false) {
-                $score += 2; // Match found
+            if (strlen($word) > 3) {
+                $count = substr_count($chunkText, $word);
+                $score += $count * 4;
             }
         }
-        if ($score > 0) $scoredChunks[] = ['text' => $chunk['text'], 'score' => $score];
+        
+        if ($score > 0) {
+            $scoredChunks[] = ['text' => $chunk['text'], 'score' => $score];
+        }
     }
 
-    // Sort by relevance score
-    usort($scoredChunks, function($a, $b) { return $b['score'] - $a['score']; });
-    
+    usort($scoredChunks, fn($a, $b) => $b['score'] - $a['score']);
+
     // Pick top 5 matches
     $bestMatches = array_slice($scoredChunks, 0, 5);
     $context = "";
