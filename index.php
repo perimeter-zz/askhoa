@@ -4,43 +4,46 @@
     <meta charset="UTF-8">
     <title>AskHOA</title>
     <link rel="stylesheet" href="assets/css/style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <header><div class="logo"><div class="logo-icon">H</div><div class="logo-text">Ask<span>HOA</span></div></div></header>
+    <header>
+        <div class="logo"><div class="logo-icon">H</div><div class="logo-text">Ask<span>HOA</span></div></div>
+    </header>
     <main>
         <div class="panel-left">
             <div class="panel-card">
                 <h3>📄 Your Documents</h3>
                 <div class="drop-zone">
                     <input type="file" id="fileInput" accept=".pdf,.txt" onchange="updateLabel()">
-                    <p id="label"><strong>Drop your PDF here</strong><br>or click to browse</p>
+                    <p id="label"><strong>Drop PDF here</strong><br>or click to browse</p>
                 </div>
                 <button class="btn-process" onclick="upload()">Process Document</button>
-                <div id="status" style="margin-top:10px; font-size:0.8rem; display:none;">● Document ready</div>
+                <div id="status" style="margin-top:10px; font-size:0.85rem; display:none; color: #4caf50;">● Document ready</div>
             </div>
 
             <div class="panel-card">
                 <h3>💡 Example Questions</h3>
-                <ul class="example-list" style="list-style:none; padding:0; font-size:0.85rem;">
-                    <li onclick="quickAsk('Can I install a satellite dish?')">→ Can I install a satellite dish?</li>
-                    <li onclick="quickAsk('What are the fence height restrictions?')">→ What are the fence height restrictions?</li>
-                    <li onclick="quickAsk('When are HOA fees due?')">→ When are HOA fees due?</li>
-                    <li onclick="quickAsk('What is the pet policy?')">→ What's the pet policy?</li>
+                <ul class="example-list">
+                    <li onclick="quickAsk('Who is the Declarant?')">→ Who is the Declarant?</li>
+                    <li onclick="quickAsk('What are the house paint rules?')">→ What are the house paint rules?</li>
+                    <li onclick="quickAsk('What is the max annual assessment?')">→ What is the max annual assessment?</li>
                 </ul>
             </div>
         </div>
+
         <div class="panel-right">
             <div id="chat-log"></div>
             <div class="chat-input-area">
-                <textarea id="questionInput" placeholder="Ask anything about your bylaws & CC&Rs..." onkeydown="handleKey(event)"></textarea>
-                <button class="btn-ask" onclick="ask()">Send</button>
+                <textarea id="questionInput" placeholder="Ask about your bylaws..." onkeydown="handleKey(event)"></textarea>
+                <button class="btn-ask" id="sendBtn" onclick="ask()">Send</button>
             </div>
         </div>
     </main>
 
     <script>
-        let ready = false;
+        let isReady = false;
+
         function updateLabel() { 
             const f = document.getElementById('fileInput').files[0];
             if(f) document.getElementById('label').innerHTML = `📎 ${f.name}`; 
@@ -51,12 +54,18 @@
             if(!f) return;
             const btn = document.querySelector('.btn-process');
             btn.innerText = "Processing...";
+            
             const fd = new FormData(); fd.append('file', f);
-            const res = await fetch('askhoa_api.php?action=upload', { method: 'POST', body: fd }).then(r => r.json());
-            ready = true;
-            document.getElementById('status').style.display = 'block';
-            btn.innerText = "Process Document";
-            appendBot("✅ " + res.message);
+            try {
+                const res = await fetch('askhoa_api.php?action=upload', { method: 'POST', body: fd }).then(r => r.json());
+                isReady = true;
+                document.getElementById('status').style.display = 'block';
+                btn.innerText = "Process Document";
+                appendBot("✅ " + res.message);
+            } catch (e) {
+                appendBot("❌ Upload failed. Please try again.");
+                btn.innerText = "Process Document";
+            }
         }
 
         function quickAsk(q) {
@@ -65,16 +74,30 @@
         }
 
         async function ask() {
-            const i = document.getElementById('questionInput');
-            const q = i.value.trim();
-            if(!q || !ready) return;
-            appendUser(q); i.value = '';
-            const res = await fetch('askhoa_api.php?action=ask', {
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({question: q})
-            }).then(r => r.json());
-            appendBot(res.answer, res.citation);
+            const input = document.getElementById('questionInput');
+            const btn = document.getElementById('sendBtn');
+            const q = input.value.trim();
+            
+            if(!q || !isReady) {
+                if(!isReady) alert("Please process a document first.");
+                return;
+            }
+
+            appendUser(q); 
+            input.value = '';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('askhoa_api.php?action=ask', {
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({question: q})
+                }).then(r => r.json());
+                appendBot(res.answer, res.citation);
+            } catch (e) {
+                appendBot("Sorry, I encountered an error processing that question.");
+            }
+            btn.disabled = false;
         }
 
         function appendUser(t) {
@@ -83,7 +106,7 @@
         }
 
         function appendBot(t, c='') {
-            const cite = c ? `<br><small style="color:var(--accent); font-size:0.75rem;">📌 ${c}</small>` : '';
+            const cite = c ? `<br><small style="color:var(--accent); font-weight:bold; font-size:0.8rem;">📌 ${c}</small>` : '';
             document.getElementById('chat-log').innerHTML += `<div class="msg bot"><div class="msg-bubble">${t}${cite}</div></div>`;
             scrollToBottom();
         }
