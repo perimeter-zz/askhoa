@@ -8,7 +8,11 @@ header('Content-Type: application/json');
 
 $config = include(__DIR__ . '/../config/env.php');
 $key = $config['OPENAI_API_KEY'] ?? '';
-$storeFile = sys_get_temp_dir() . '/askhoa_' . session_id() . '.json';
+
+$docId = $_GET['docId'] ?? null;
+$storeFile = $docId 
+    ? sys_get_temp_dir() . '/askhoa_' . $docId . '.json'
+    : null;
 
 $action = $_GET['action'] ?? '';
 
@@ -21,12 +25,26 @@ if ($action === 'upload') {
     if (strlen($text) < 100) { echo json_encode(['message' => 'PDF unreadable.']); exit; }
 
     $chunks = DocumentProcessor::chunkText($text);
+
+    $docId = uniqid();
+    $storeFile = sys_get_temp_dir() . '/askhoa_' . $docId . '.json';
+
     file_put_contents($storeFile, json_encode($chunks));
-    echo json_encode(['message' => count($chunks) . ' sections indexed. Ask away!']);
+
+    echo json_encode([
+        'message' => count($chunks) . ' sections indexed. Ask away!',
+        'docId' => $docId
+    ]);
+
     exit;
 }
 
 // --- ASK (Fixed Retrieval) ---
+if (!$docId) {
+    echo json_encode(['answer' => 'Missing document ID. Please re-upload.']);
+    exit;
+}
+
 if ($action === 'ask') {
     $input = json_decode(file_get_contents('php://input'), true);
     $question = strtolower($input['question'] ?? '');

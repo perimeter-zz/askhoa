@@ -41,82 +41,109 @@
         </div>
     </main>
 
-    <script>
-        let isReady = false;
+   <script>
+    let isReady = false;
+    let docId = null;
 
-        function updateLabel() { 
-            const f = document.getElementById('fileInput').files[0];
-            if(f) document.getElementById('label').innerHTML = `📎 ${f.name}`; 
-        }
+    function updateLabel() { 
+        const f = document.getElementById('fileInput').files[0];
+        if(f) document.getElementById('label').innerHTML = `📎 ${f.name}`; 
+    }
 
-        async function upload() {
-            const f = document.getElementById('fileInput').files[0];
-            if(!f) return;
-            const btn = document.querySelector('.btn-process');
-            btn.innerText = "Processing...";
-            
-            const fd = new FormData(); fd.append('file', f);
-            try {
-                const res = await fetch('askhoa_api.php?action=upload', { method: 'POST', body: fd }).then(r => r.json());
-                isReady = true;
-                document.getElementById('status').style.display = 'block';
-                btn.innerText = "Process Document";
-                appendBot("✅ " + res.message);
-            } catch (e) {
-                appendBot("❌ Upload failed. Please try again.");
-                btn.innerText = "Process Document";
-            }
-        }
+    async function upload() {
+        const f = document.getElementById('fileInput').files[0];
+        if(!f) return;
+        const btn = document.querySelector('.btn-process');
+        btn.innerText = "Processing...";
+        
+        const fd = new FormData(); 
+        fd.append('file', f);
 
-        function quickAsk(q) {
-            document.getElementById('questionInput').value = q;
-            ask();
-        }
+        try {
+            const res = await fetch('askhoa_api.php?action=upload', { 
+                method: 'POST', 
+                body: fd,
+                credentials: 'same-origin'   // 🔥 FIX
+            }).then(r => r.json());
 
-        async function ask() {
-            const input = document.getElementById('questionInput');
-            const btn = document.getElementById('sendBtn');
-            const q = input.value.trim();
-            
-            if(!q || !isReady) {
-                if(!isReady) alert("Please process a document first.");
-                return;
+            if (res.message && !res.message.toLowerCase().includes('unreadable')) {
+                if (res.docId) {
+                    docId = res.docId;
+                    isReady = true;
+                    document.getElementById('status').style.display = 'block';
+                }
             }
 
-            appendUser(q); 
-            input.value = '';
-            btn.disabled = true;
+            btn.innerText = "Process Document";
+            appendBot("✅ " + (res.message || "Upload complete"));
 
-            try {
-                const res = await fetch('askhoa_api.php?action=ask', {
-                    method: 'POST', 
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({question: q})
-                }).then(r => r.json());
-                appendBot(res.answer, res.citation);
-            } catch (e) {
-                appendBot("Sorry, I encountered an error processing that question.");
-            }
-            btn.disabled = false;
+        } catch (e) {
+            appendBot("❌ Upload failed. Please try again.");
+            btn.innerText = "Process Document";
+        }
+    }
+
+    function quickAsk(q) {
+        document.getElementById('questionInput').value = q;
+        ask();
+    }
+
+    async function ask() {
+        const input = document.getElementById('questionInput');
+        const btn = document.getElementById('sendBtn');
+        const q = input.value.trim();
+        
+        if(!q || !isReady) {
+            if(!isReady) alert("Please process a document first.");
+            return;
         }
 
-        function appendUser(t) {
-            document.getElementById('chat-log').innerHTML += `<div class="msg user"><div class="msg-bubble">${t}</div></div>`;
-            scrollToBottom();
+        appendUser(q); 
+        input.value = '';
+        btn.disabled = true;
+
+        try {
+            const res = await fetch(`askhoa_api.php?action=ask&docId=${docId}`, {
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({question: q}),
+                credentials: 'same-origin'   // 🔥 FIX
+            }).then(r => r.json());
+
+            appendBot(
+                res.answer || "⚠️ No response from server.", 
+                res.citation || ''
+            );
+
+        } catch (e) {
+            appendBot("Sorry, I encountered an error processing that question.");
         }
 
-        function appendBot(t, c='') {
-            const cite = c ? `<br><small style="color:var(--accent); font-weight:bold; font-size:0.8rem;">📌 ${c}</small>` : '';
-            document.getElementById('chat-log').innerHTML += `<div class="msg bot"><div class="msg-bubble">${t}${cite}</div></div>`;
-            scrollToBottom();
-        }
+        btn.disabled = false;
+    }
 
-        function scrollToBottom() {
-            const log = document.getElementById('chat-log');
-            log.scrollTop = log.scrollHeight;
-        }
+    function appendUser(t) {
+        document.getElementById('chat-log').innerHTML += `<div class="msg user"><div class="msg-bubble">${t}</div></div>`;
+        scrollToBottom();
+    }
 
-        function handleKey(e) { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(); } }
-    </script>
+    function appendBot(t, c='') {
+        const cite = c ? `<br><small style="color:var(--accent); font-weight:bold; font-size:0.8rem;">📌 ${c}</small>` : '';
+        document.getElementById('chat-log').innerHTML += `<div class="msg bot"><div class="msg-bubble">${t}${cite}</div></div>`;
+        scrollToBottom();
+    }
+
+    function scrollToBottom() {
+        const log = document.getElementById('chat-log');
+        log.scrollTop = log.scrollHeight;
+    }
+
+    function handleKey(e) { 
+        if(e.key === 'Enter' && !e.shiftKey) { 
+            e.preventDefault(); 
+            ask(); 
+        } 
+    }
+</script>
 </body>
 </html>
