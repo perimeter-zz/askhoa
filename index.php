@@ -6,137 +6,6 @@
     <link rel="icon" href="data:,">
     <link rel="stylesheet" href="assets/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- pdf.js - local mjs files from pdfjs-dist -->
-    <script type="module">
-        import * as pdfjsLib from './assets/js/pdf.mjs';
-        pdfjsLib.GlobalWorkerOptions.workerSrc = './assets/js/pdf.worker.mjs';
-
-        let isReady = false;
-        let docId = null;
-
-        window.updateLabel = function() {
-            const f = document.getElementById('fileInput').files[0];
-            if (f) document.getElementById('label').innerHTML = `📎 ${f.name}`;
-        }
-
-        async function extractTextFromPDF(file) {
-            const arrayBuffer = await file.arrayBuffer();
-            const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) });
-            const pdf = await loadingTask.promise;
-            appendBot(`📄 PDF loaded: ${pdf.numPages} pages found`);
-            let fullText = '';
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i);
-                const content = await page.getTextContent();
-                const pageText = content.items.map(item => item.str).join(' ');
-                fullText += pageText + '\n';
-                if (i === 1) appendBot(`📝 Page 1 sample: [${pageText.substring(0, 150)}]`);
-            }
-            return fullText;
-        }
-
-        window.upload = async function() {
-            const f = document.getElementById('fileInput').files[0];
-            if (!f) return;
-            const btn = document.querySelector('.btn-process');
-            btn.innerText = "Extracting text...";
-            btn.disabled = true;
-            try {
-                let text = '';
-                if (f.name.toLowerCase().endsWith('.txt')) {
-                    text = await f.text();
-                } else {
-                    appendBot("⏳ Reading PDF in browser...");
-                    try {
-                        text = await extractTextFromPDF(f);
-                    } catch (pdfErr) {
-                        appendBot("❌ pdf.js error: " + pdfErr.message);
-                        btn.innerText = "Process Document";
-                        btn.disabled = false;
-                        return;
-                    }
-                }
-                if (!text || text.trim().length < 100) {
-                    appendBot("❌ Extracted text too short (" + (text ? text.trim().length : 0) + " chars). Sample: [" + (text ? text.substring(0, 200) : 'empty') + "]");
-                    btn.innerText = "Process Document";
-                    btn.disabled = false;
-                    return;
-                }
-                btn.innerText = "Sending to server...";
-                const res = await fetch('askhoa_api.php?action=upload', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: text }),
-                    credentials: 'same-origin'
-                }).then(r => r.json());
-                if (res.docId) {
-                    docId = res.docId;
-                    isReady = true;
-                    document.getElementById('status').style.display = 'block';
-                }
-                btn.innerText = "Process Document";
-                btn.disabled = false;
-                appendBot("✅ " + (res.message || "Upload complete"));
-            } catch (e) {
-                appendBot("❌ Upload failed: " + e.message);
-                btn.innerText = "Process Document";
-                btn.disabled = false;
-            }
-        }
-
-        window.quickAsk = function(q) {
-            document.getElementById('questionInput').value = q;
-            window.ask();
-        }
-
-        window.ask = async function() {
-            const input = document.getElementById('questionInput');
-            const btn = document.getElementById('sendBtn');
-            const q = input.value.trim();
-            if (!q || !isReady) {
-                if (!isReady) alert("Please process a document first.");
-                return;
-            }
-            appendUser(q);
-            input.value = '';
-            btn.disabled = true;
-            try {
-                const res = await fetch(`askhoa_api.php?action=ask&docId=${docId}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ question: q }),
-                    credentials: 'same-origin'
-                }).then(r => r.json());
-                appendBot(res.answer || "⚠️ No response from server.", res.citation || '');
-            } catch (e) {
-                appendBot("Sorry, I encountered an error processing that question.");
-            }
-            btn.disabled = false;
-        }
-
-        function appendUser(t) {
-            document.getElementById('chat-log').innerHTML += `<div class="msg user"><div class="msg-bubble">${t}</div></div>`;
-            scrollToBottom();
-        }
-
-        function appendBot(t, c = '') {
-            const cite = c ? `<br><small style="color:var(--accent); font-weight:bold; font-size:0.8rem;">📌 ${c}</small>` : '';
-            document.getElementById('chat-log').innerHTML += `<div class="msg bot"><div class="msg-bubble">${t}${cite}</div></div>`;
-            scrollToBottom();
-        }
-
-        function scrollToBottom() {
-            const log = document.getElementById('chat-log');
-            log.scrollTop = log.scrollHeight;
-        }
-
-        window.handleKey = function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                window.ask();
-            }
-        }
-    </script>
 </head>
 <body>
     <header>
@@ -178,5 +47,136 @@
         </div>
     </main>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.9.155/pdf.min.js"></script>
+<script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.9.155/pdf.worker.min.js';
+
+    let isReady = false;
+    let docId = null;
+
+    function updateLabel() {
+        const f = document.getElementById('fileInput').files[0];
+        if (f) document.getElementById('label').innerHTML = '📎 ' + f.name;
+    }
+
+    async function extractTextFromPDF(file) {
+        const arrayBuffer = await file.arrayBuffer();
+        const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) });
+        const pdf = await loadingTask.promise;
+        appendBot('📄 PDF loaded: ' + pdf.numPages + ' pages found');
+        let fullText = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            const pageText = content.items.map(item => item.str).join(' ');
+            fullText += pageText + '\n';
+            if (i === 1) appendBot('📝 Page 1 sample: [' + pageText.substring(0, 150) + ']');
+        }
+        return fullText;
+    }
+
+    async function upload() {
+        const f = document.getElementById('fileInput').files[0];
+        if (!f) return;
+        const btn = document.querySelector('.btn-process');
+        btn.innerText = "Extracting text...";
+        btn.disabled = true;
+        try {
+            let text = '';
+            if (f.name.toLowerCase().endsWith('.txt')) {
+                text = await f.text();
+            } else {
+                appendBot("⏳ Reading PDF in browser...");
+                try {
+                    text = await extractTextFromPDF(f);
+                } catch (pdfErr) {
+                    appendBot("❌ pdf.js error: " + pdfErr.message);
+                    btn.innerText = "Process Document";
+                    btn.disabled = false;
+                    return;
+                }
+            }
+            if (!text || text.trim().length < 100) {
+                appendBot("❌ Extracted text too short (" + (text ? text.trim().length : 0) + " chars)");
+                btn.innerText = "Process Document";
+                btn.disabled = false;
+                return;
+            }
+            btn.innerText = "Sending to server...";
+            const res = await fetch('askhoa_api.php?action=upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: text }),
+                credentials: 'same-origin'
+            }).then(r => r.json());
+            if (res.docId) {
+                docId = res.docId;
+                isReady = true;
+                document.getElementById('status').style.display = 'block';
+            }
+            btn.innerText = "Process Document";
+            btn.disabled = false;
+            appendBot("✅ " + (res.message || "Upload complete"));
+        } catch (e) {
+            appendBot("❌ Upload failed: " + e.message);
+            btn.innerText = "Process Document";
+            btn.disabled = false;
+        }
+    }
+
+    function quickAsk(q) {
+        document.getElementById('questionInput').value = q;
+        ask();
+    }
+
+    async function ask() {
+        const input = document.getElementById('questionInput');
+        const btn = document.getElementById('sendBtn');
+        const q = input.value.trim();
+        if (!q || !isReady) {
+            if (!isReady) alert("Please process a document first.");
+            return;
+        }
+        appendUser(q);
+        input.value = '';
+        btn.disabled = true;
+        try {
+            const res = await fetch('askhoa_api.php?action=ask&docId=' + docId, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question: q }),
+                credentials: 'same-origin'
+            }).then(r => r.json());
+            appendBot(res.answer || "⚠️ No response from server.", res.citation || '');
+        } catch (e) {
+            appendBot("Sorry, I encountered an error processing that question.");
+        }
+        btn.disabled = false;
+    }
+
+    function appendUser(t) {
+        document.getElementById('chat-log').innerHTML += '<div class="msg user"><div class="msg-bubble">' + t + '</div></div>';
+        scrollToBottom();
+    }
+
+    function appendBot(t, c) {
+        c = c || '';
+        const cite = c ? '<br><small style="color:var(--accent); font-weight:bold; font-size:0.8rem;">📌 ' + c + '</small>' : '';
+        document.getElementById('chat-log').innerHTML += '<div class="msg bot"><div class="msg-bubble">' + t + cite + '</div></div>';
+        scrollToBottom();
+    }
+
+    function scrollToBottom() {
+        const log = document.getElementById('chat-log');
+        log.scrollTop = log.scrollHeight;
+    }
+
+    function handleKey(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            ask();
+        }
+    }
+</script>
 </body>
 </html>
