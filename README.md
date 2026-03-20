@@ -1,7 +1,5 @@
-# this is for askhoa.org
+# askhoa.org
 
-# goal:  save hoa admin, and hoa members time by using chat assistant for hoa questions
+# free website to help hoa members and admin by using chat assistant for hoa questions
 
-# for now, it's standalone at askhoa.org
-
-# on mac now, testing
+# upload bylaws, cc&r, etc
