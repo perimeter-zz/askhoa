@@ -5,6 +5,8 @@
     <title>AskHOA</title>
     <link rel="stylesheet" href="assets/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- pdf.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
     <header>
@@ -41,45 +43,82 @@
         </div>
     </main>
 
-   <script>
+<script>
+    // Point pdf.js worker at CDN
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
     let isReady = false;
     let docId = null;
 
-    function updateLabel() { 
+    function updateLabel() {
         const f = document.getElementById('fileInput').files[0];
-        if(f) document.getElementById('label').innerHTML = `📎 ${f.name}`; 
+        if (f) document.getElementById('label').innerHTML = `📎 ${f.name}`;
+    }
+
+    async function extractTextFromPDF(file) {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            const pageText = content.items.map(item => item.str).join(' ');
+            fullText += pageText + '\n';
+        }
+        return fullText;
     }
 
     async function upload() {
         const f = document.getElementById('fileInput').files[0];
-        if(!f) return;
+        if (!f) return;
+
         const btn = document.querySelector('.btn-process');
-        btn.innerText = "Processing...";
-        
-        const fd = new FormData(); 
-        fd.append('file', f);
+        btn.innerText = "Extracting text...";
+        btn.disabled = true;
 
         try {
-            const res = await fetch('askhoa_api.php?action=upload', { 
-                method: 'POST', 
-                body: fd,
-                credentials: 'same-origin'   // 🔥 FIX
+            let text = '';
+
+            if (f.name.toLowerCase().endsWith('.txt')) {
+                text = await f.text();
+            } else {
+                // PDF: extract in browser using pdf.js
+                appendBot("⏳ Reading PDF in browser...");
+                text = await extractTextFromPDF(f);
+            }
+
+            if (!text || text.trim().length < 100) {
+                appendBot("❌ Could not extract text from this PDF. Try a text-based PDF.");
+                btn.innerText = "Process Document";
+                btn.disabled = false;
+                return;
+            }
+
+            btn.innerText = "Sending to server...";
+
+            // Send raw text to PHP
+            const res = await fetch('askhoa_api.php?action=upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: text }),
+                credentials: 'same-origin'
             }).then(r => r.json());
 
-            if (res.message && !res.message.toLowerCase().includes('unreadable')) {
-                if (res.docId) {
-                    docId = res.docId;
-                    isReady = true;
-                    document.getElementById('status').style.display = 'block';
-                }
+            if (res.docId) {
+                docId = res.docId;
+                isReady = true;
+                document.getElementById('status').style.display = 'block';
             }
 
             btn.innerText = "Process Document";
+            btn.disabled = false;
             appendBot("✅ " + (res.message || "Upload complete"));
 
         } catch (e) {
-            appendBot("❌ Upload failed. Please try again.");
+            appendBot("❌ Upload failed: " + e.message);
             btn.innerText = "Process Document";
+            btn.disabled = false;
         }
     }
 
@@ -92,26 +131,26 @@
         const input = document.getElementById('questionInput');
         const btn = document.getElementById('sendBtn');
         const q = input.value.trim();
-        
-        if(!q || !isReady) {
-            if(!isReady) alert("Please process a document first.");
+
+        if (!q || !isReady) {
+            if (!isReady) alert("Please process a document first.");
             return;
         }
 
-        appendUser(q); 
+        appendUser(q);
         input.value = '';
         btn.disabled = true;
 
         try {
             const res = await fetch(`askhoa_api.php?action=ask&docId=${docId}`, {
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({question: q}),
-                credentials: 'same-origin'   // 🔥 FIX
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question: q }),
+                credentials: 'same-origin'
             }).then(r => r.json());
 
             appendBot(
-                res.answer || "⚠️ No response from server.", 
+                res.answer || "⚠️ No response from server.",
                 res.citation || ''
             );
 
@@ -127,7 +166,7 @@
         scrollToBottom();
     }
 
-    function appendBot(t, c='') {
+    function appendBot(t, c = '') {
         const cite = c ? `<br><small style="color:var(--accent); font-weight:bold; font-size:0.8rem;">📌 ${c}</small>` : '';
         document.getElementById('chat-log').innerHTML += `<div class="msg bot"><div class="msg-bubble">${t}${cite}</div></div>`;
         scrollToBottom();
@@ -138,11 +177,11 @@
         log.scrollTop = log.scrollHeight;
     }
 
-    function handleKey(e) { 
-        if(e.key === 'Enter' && !e.shiftKey) { 
-            e.preventDefault(); 
-            ask(); 
-        } 
+    function handleKey(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            ask();
+        }
     }
 </script>
 </body>
