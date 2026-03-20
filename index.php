@@ -47,9 +47,9 @@
         </div>
     </main>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.9.155/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/legacy/build/pdf.min.js"></script>
 <script>
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.9.155/pdf.worker.min.js';
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/legacy/build/pdf.worker.min.js';
 
     let isReady = false;
     let docId = null;
@@ -61,16 +61,27 @@
 
     async function extractTextFromPDF(file) {
         const arrayBuffer = await file.arrayBuffer();
-        const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) });
+        const loadingTask = pdfjsLib.getDocument({ 
+            data: new Uint8Array(arrayBuffer),
+            useWorkerFetch: false,
+            isEvalSupported: false,
+            useSystemFonts: true
+        });
         const pdf = await loadingTask.promise;
         appendBot('📄 PDF loaded: ' + pdf.numPages + ' pages found');
         let fullText = '';
         for (let i = 1; i <= pdf.numPages; i++) {
             const page = await pdf.getPage(i);
-            const content = await page.getTextContent();
-            const pageText = content.items.map(item => item.str).join(' ');
+            const content = await page.getTextContent({ 
+                includeMarkedContent: false,
+                disableNormalization: true 
+            });
+            const pageText = content.items
+                .filter(item => item.str !== undefined)
+                .map(item => item.str)
+                .join(' ');
             fullText += pageText + '\n';
-            if (i === 1) appendBot('📝 Page 1 sample: [' + pageText.substring(0, 150) + ']');
+            if (i === 1) appendBot('📝 Page 1 sample: [' + pageText.substring(0, 150) + '] items:' + content.items.length);
         }
         return fullText;
     }
@@ -87,6 +98,12 @@
                 text = await f.text();
             } else {
                 appendBot("⏳ Reading PDF in browser...");
+                if (typeof pdfjsLib === 'undefined') {
+                    appendBot("❌ pdf.js failed to load. Check your internet connection or browser console.");
+                    btn.innerText = "Process Document";
+                    btn.disabled = false;
+                    return;
+                }
                 try {
                     text = await extractTextFromPDF(f);
                 } catch (pdfErr) {
