@@ -5,8 +5,12 @@
     <title>AskHOA</title>
     <link rel="stylesheet" href="assets/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- pdf.js CDN -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <!-- pdf.js - local mjs files from pdfjs-dist -->
+    <script type="module">
+        import * as pdfjsLib from 'assets/js/pdf.mjs';
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'assets/js/pdf.worker.mjs';
+        window.pdfjsLib = pdfjsLib;
+    </script>
 </head>
 <body>
     <header>
@@ -49,10 +53,6 @@
     </main>
 
 <script>
-    // Point pdf.js worker at CDN
-    pdfjsLib.GlobalWorkerOptions.workerSrc =
-        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
     let isReady = false;
     let docId = null;
 
@@ -63,13 +63,18 @@
 
     async function extractTextFromPDF(file) {
         const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) });
+        const pdf = await loadingTask.promise;
+        
+        appendBot(`📄 PDF loaded: ${pdf.numPages} pages found`);
+        
         let fullText = '';
         for (let i = 1; i <= pdf.numPages; i++) {
             const page = await pdf.getPage(i);
             const content = await page.getTextContent();
             const pageText = content.items.map(item => item.str).join(' ');
             fullText += pageText + '\n';
+            if (i === 1) appendBot(`📝 Page 1 sample: [${pageText.substring(0, 150)}]`);
         }
         return fullText;
     }
@@ -88,13 +93,19 @@
             if (f.name.toLowerCase().endsWith('.txt')) {
                 text = await f.text();
             } else {
-                // PDF: extract in browser using pdf.js
                 appendBot("⏳ Reading PDF in browser...");
-                text = await extractTextFromPDF(f);
+                try {
+                    text = await extractTextFromPDF(f);
+                } catch (pdfErr) {
+                    appendBot("❌ pdf.js error: " + pdfErr.message);
+                    btn.innerText = "Process Document";
+                    btn.disabled = false;
+                    return;
+                }
             }
 
             if (!text || text.trim().length < 100) {
-                appendBot("❌ Could not extract text from this PDF. Try a text-based PDF.");
+                appendBot("❌ Extracted text too short (" + (text ? text.trim().length : 0) + " chars). Sample: [" + (text ? text.substring(0, 200) : 'empty') + "]");
                 btn.innerText = "Process Document";
                 btn.disabled = false;
                 return;
