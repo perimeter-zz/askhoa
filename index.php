@@ -10,7 +10,12 @@
 </head>
 <body>
     <header>
-        <div class="logo"><div class="logo-icon">H</div><div class="logo-text">Ask<span>HOA</span></div></div>
+        <?php $version = trim(@file_get_contents(__DIR__ . '/version.txt') ?: '1.0.0'); ?>
+        <div class="logo" title="v<?= htmlspecialchars($version) ?>" style="cursor:default;">
+            <div class="logo-icon">H</div>
+            <div class="logo-text">Ask<span>HOA</span></div>
+            <span style="font-size:0.65rem; color:#8b949e; margin-left:0.4rem; align-self:flex-end; padding-bottom:2px;">v<?= htmlspecialchars($version) ?></span>
+        </div>
     </header>
     <main>
         <div class="panel-left">
