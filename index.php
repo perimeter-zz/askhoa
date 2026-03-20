@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>AskHOA</title>
     <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="assets/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
     <!-- pdf.js - local mjs files from pdfjs-dist -->
     <script type="module">
