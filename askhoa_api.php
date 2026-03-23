@@ -1,13 +1,20 @@
 <?php
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__.'/askhoa_error.log');
+error_reporting(E_ALL);
+
 // askhoa_api.php
 require_once 'DocumentProcessor.php';
 require_once 'ChatHandler.php';
 
-// Add PDF parser library (download from https://github.com/smalot/pdfparser/archive/master.zip, extract to vendor/smalot/pdfparser)
-require_once __DIR__ . '/src/Smalot/PdfParser/Parser.php';
+// Load PDF parser library with autoloader
+require_once __DIR__ . '/src/autoload.php';
+use Smalot\PdfParser\Parser;
 
 session_start();
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=utf-8');
+ob_start();
 
 $config = include(__DIR__ . '/../config/env.php');
 $key = $config['OPENAI_API_KEY'] ?? '';
@@ -132,5 +139,10 @@ if ($action === 'ask') {
 
     $chat = new ChatHandler($key);
     echo json_encode($chat->ask($question, $context));
-    exit;
+}
+
+// Clean up any stray output before sending response
+$output = ob_get_clean();
+if ($output !== '') {
+    error_log("askhoa stray output: " . trim($output));
 }

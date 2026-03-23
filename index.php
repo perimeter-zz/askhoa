@@ -65,11 +65,13 @@
         try {
             const formData = new FormData();
             formData.append('file', f);
-            const res = await fetch('askhoa_api.php?action=upload', {
+            const response = await fetch('askhoa_api.php?action=upload', {
                 method: 'POST',
                 body: formData,
                 credentials: 'same-origin'
-            }).then(r => r.json());
+            });
+            const text = await response.text();
+            const res = JSON.parse(text);
             if (res.docId) {
                 docId = res.docId;
                 isReady = true;
@@ -80,6 +82,7 @@
             appendBot("✅ " + (res.message || "Upload complete"));
         } catch (e) {
             appendBot("❌ Upload failed: " + e.message);
+            console.error("Upload error:", e);
             btn.innerText = "Process Document";
             btn.disabled = false;
         }
@@ -102,15 +105,18 @@
         input.value = '';
         btn.disabled = true;
         try {
-            const res = await fetch('askhoa_api.php?action=ask&docId=' + docId, {
+            const response = await fetch('askhoa_api.php?action=ask&docId=' + docId, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ question: q }),
                 credentials: 'same-origin'
-            }).then(r => r.json());
+            });
+            const text = await response.text();
+            const res = JSON.parse(text);
             appendBot(res.answer || "⚠️ No response from server.", res.citation || '');
         } catch (e) {
-            appendBot("Sorry, I encountered an error processing that question.");
+            appendBot("❌ Error: " + e.message);
+            console.error("Ask error:", e);
         }
         btn.disabled = false;
     }
