@@ -12,8 +12,7 @@ spl_autoload_register(function ($class) {
 
     // Convert class name to file path
     // Smalot\PdfParser\Parser => src/Smalot/PdfParser/Parser.php
-    // Smalot\PdfParser\Element\ElementArray => src/Smalot/PdfParser/Element/ElementArray.php
-    $relativePath = str_replace('\\', '/', substr($class, strlen('Smalot\\')));
+    $relativePath = str_replace('\\', '/', $class);
     $filePath = __DIR__ . '/src/' . $relativePath . '.php';
 
     if (file_exists($filePath)) {
