@@ -9,7 +9,7 @@ require_once 'DocumentProcessor.php';
 require_once 'ChatHandler.php';
 
 // Load PDF parser library with autoloader
-require_once __DIR__ . '/src/autoload.php';
+require_once __DIR__ . '/autoload_pdfparser.php';
 use Smalot\PdfParser\Parser;
 
 session_start();
