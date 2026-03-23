@@ -47,10 +47,7 @@
         </div>
     </main>
 
-<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/legacy/build/pdf.min.js"></script>
-<script>
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/legacy/build/pdf.worker.min.js';
-
+    <script>
     let isReady = false;
     let docId = null;
 
@@ -59,71 +56,18 @@
         if (f) document.getElementById('label').innerHTML = '📎 ' + f.name;
     }
 
-    async function extractTextFromPDF(file) {
-        const arrayBuffer = await file.arrayBuffer();
-        const loadingTask = pdfjsLib.getDocument({ 
-            data: new Uint8Array(arrayBuffer),
-            useWorkerFetch: false,
-            isEvalSupported: false,
-            useSystemFonts: true
-        });
-        const pdf = await loadingTask.promise;
-        appendBot('📄 PDF loaded: ' + pdf.numPages + ' pages found');
-        let fullText = '';
-        for (let i = 1; i <= pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const content = await page.getTextContent({ 
-                includeMarkedContent: false,
-                disableNormalization: true 
-            });
-            const pageText = content.items
-                .filter(item => item.str !== undefined)
-                .map(item => item.str)
-                .join(' ');
-            fullText += pageText + '\n';
-            if (i === 1) appendBot('📝 Page 1 sample: [' + pageText.substring(0, 150) + '] items:' + content.items.length);
-        }
-        return fullText;
-    }
-
     async function upload() {
         const f = document.getElementById('fileInput').files[0];
         if (!f) return;
         const btn = document.querySelector('.btn-process');
-        btn.innerText = "Extracting text...";
+        btn.innerText = "Uploading...";
         btn.disabled = true;
         try {
-            let text = '';
-            if (f.name.toLowerCase().endsWith('.txt')) {
-                text = await f.text();
-            } else {
-                appendBot("⏳ Reading PDF in browser...");
-                if (typeof pdfjsLib === 'undefined') {
-                    appendBot("❌ pdf.js failed to load. Check your internet connection or browser console.");
-                    btn.innerText = "Process Document";
-                    btn.disabled = false;
-                    return;
-                }
-                try {
-                    text = await extractTextFromPDF(f);
-                } catch (pdfErr) {
-                    appendBot("❌ pdf.js error: " + pdfErr.message);
-                    btn.innerText = "Process Document";
-                    btn.disabled = false;
-                    return;
-                }
-            }
-            if (!text || text.trim().length < 100) {
-                appendBot("❌ Extracted text too short (" + (text ? text.trim().length : 0) + " chars)");
-                btn.innerText = "Process Document";
-                btn.disabled = false;
-                return;
-            }
-            btn.innerText = "Sending to server...";
+            const formData = new FormData();
+            formData.append('file', f);
             const res = await fetch('askhoa_api.php?action=upload', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: text }),
+                body: formData,
                 credentials: 'same-origin'
             }).then(r => r.json());
             if (res.docId) {

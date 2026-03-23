@@ -3,38 +3,82 @@
 require_once 'DocumentProcessor.php';
 require_once 'ChatHandler.php';
 
+// Add PDF parser library (download from https://github.com/smalot/pdfparser/archive/master.zip, extract to vendor/smalot/pdfparser)
+require_once __DIR__ . '/src/Smalot/PdfParser/Parser.php';
+
 session_start();
 header('Content-Type: application/json');
 
 $config = include(__DIR__ . '/../config/env.php');
 $key = $config['OPENAI_API_KEY'] ?? '';
 
+$storageDir = __DIR__ . '/../storage';
+if (!is_dir($storageDir)) mkdir($storageDir, 0755, true);
+
 $docId = $_GET['docId'] ?? null;
 $storeFile = $docId
-    ? sys_get_temp_dir() . '/askhoa_' . $docId . '.json'
+    ? $storageDir . '/askhoa_' . $docId . '.json'
     : null;
 
 $action = $_GET['action'] ?? '';
 
-// --- UPLOAD (receives raw text from browser, no PHP PDF parsing needed) ---
-if ($action === 'upload') {
-    $input = json_decode(file_get_contents('php://input'), true);
-    $text = $input['text'] ?? '';
+$action = $_GET['action'] ?? '';
 
-    if (strlen(trim($text)) < 100) {
-        echo json_encode(['message' => 'No text received. Please try again.']);
+// --- UPLOAD (receives PDF file, extracts text server-side) ---
+if ($action === 'upload') {
+    if (!isset($_FILES['file'])) {
+        echo json_encode(['message' => 'No file uploaded.']);
         exit;
     }
 
-    $chunks = DocumentProcessor::chunkText($text);
-    $docId = uniqid();
-    $storeFile = sys_get_temp_dir() . '/askhoa_' . $docId . '.json';
-    file_put_contents($storeFile, json_encode($chunks));
+    $file = $_FILES['file'];
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        echo json_encode(['message' => 'File upload error: ' . $file['error']]);
+        exit;
+    }
 
-    echo json_encode([
-        'message' => count($chunks) . ' sections indexed. Ask away!',
-        'docId'   => $docId
-    ]);
+    $allowedTypes = ['application/pdf', 'text/plain'];
+    if (!in_array($file['type'], $allowedTypes)) {
+        echo json_encode(['message' => 'Only PDF or TXT files allowed.']);
+        exit;
+    }
+
+    $maxSize = 10 * 1024 * 1024; // 10MB
+    if ($file['size'] > $maxSize) {
+        echo json_encode(['message' => 'File too large (max 10MB).']);
+        exit;
+    }
+
+    $tempPath = $file['tmp_name'];
+    $text = '';
+
+    try {
+        if ($file['type'] === 'text/plain') {
+            $text = file_get_contents($tempPath);
+        } else {
+            // Extract text from PDF using smalot/pdfparser
+            $parser = new Parser();
+            $pdf = $parser->parseFile($tempPath);
+            $text = $pdf->getText();
+        }
+
+        if (strlen(trim($text)) < 100) {
+            echo json_encode(['message' => 'Extracted text too short. Document may be image-based or empty.']);
+            exit;
+        }
+
+        $chunks = DocumentProcessor::chunkText($text);
+        $docId = uniqid();
+        $storeFile = $storageDir . '/askhoa_' . $docId . '.json';
+        file_put_contents($storeFile, json_encode($chunks));
+
+        echo json_encode([
+            'message' => count($chunks) . ' sections indexed. Ask away!',
+            'docId'   => $docId
+        ]);
+    } catch (Exception $e) {
+        echo json_encode(['message' => 'Error processing file: ' . $e->getMessage()]);
+    }
     exit;
 }
 

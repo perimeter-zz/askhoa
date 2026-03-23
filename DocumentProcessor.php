@@ -1,8 +1,8 @@
 <?php
 class DocumentProcessor {
 
-    // PDF parsing removed — text is now extracted client-side via pdf.js in the browser.
-    // This class only handles chunking the clean text received from the frontend.
+    // PDF parsing now handled server-side via smalot/pdfparser.
+    // This class chunks the clean text received from the server-side extraction.
 
     public static function chunkText($text, $size = 800, $overlap = 100) {
         $words = explode(' ', $text);

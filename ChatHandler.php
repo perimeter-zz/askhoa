@@ -23,7 +23,6 @@ class ChatHandler {
                     [
                         'role' => 'system', 
                         'content' => "You are an expert on HOA CC&Rs and bylaws.
-
 Answer ONLY using the excerpts below. Quote the exact rule when possible.
 If the information is not in the excerpts, reply exactly: 'Information not found in the provided document excerpts.'
 Never guess or use outside knowledge.
