@@ -82,7 +82,7 @@ if ($action === 'upload') {
         }
 
         if (strlen(trim($text)) < 100) {
-            echo json_encode(['message' => 'Extracted text too short. Document may be image-based or empty.']);
+            echo json_encode(['message' => 'This document appears to be a scanned (image-based) PDF. AskHOA requires a text-based PDF. Try re-saving the document as "PDF with text" from your HOA management software, or copy and paste the content into a .txt file.']);
             exit;
         }
 
