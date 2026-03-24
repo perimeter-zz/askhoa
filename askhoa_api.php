@@ -151,6 +151,7 @@ if ($action === 'ask') {
 
     $chat = new ChatHandler($key);
     echo json_encode($chat->ask($question, $context));
+    exit;
 }
 
 // Clean up any stray output before sending response
