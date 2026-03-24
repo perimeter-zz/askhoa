@@ -59,6 +59,18 @@ if ($action === 'upload') {
     $tempPath = $file['tmp_name'];
     $text = '';
 
+    // Reject binary files masquerading as text/plain via magic-byte check
+    if ($file['type'] === 'text/plain') {
+        $header = file_get_contents($tempPath, false, null, 0, 12);
+        $binarySignatures = ["\xFF\xD8\xFF", "\x89PNG", "GIF8", "%PDF", "PK\x03\x04"];
+        foreach ($binarySignatures as $sig) {
+            if (str_starts_with($header, $sig)) {
+                echo json_encode(['message' => 'File content does not match declared type.']);
+                exit;
+            }
+        }
+    }
+
     try {
         if ($file['type'] === 'text/plain') {
             $text = file_get_contents($tempPath);
