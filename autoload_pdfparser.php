@@ -11,9 +11,9 @@ spl_autoload_register(function ($class) {
     }
 
     // Convert class name to file path
-    // Smalot\PdfParser\Parser => src/Smalot/PdfParser/Parser.php
+    // Smalot\PdfParser\Parser => vendor/Smalot/PdfParser/Parser.php
     $relativePath = str_replace('\\', '/', $class);
-    $filePath = __DIR__ . '/src/' . $relativePath . '.php';
+    $filePath = __DIR__ . '/vendor/' . $relativePath . '.php';
 
     if (file_exists($filePath)) {
         require_once $filePath;
