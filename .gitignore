@@ -1,0 +1,4 @@
+.claude/
+__pycache__/
+test_report_*.txt
+askhoa_error.log
