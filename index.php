@@ -112,6 +112,7 @@
                 credentials: 'same-origin'
             });
             const text = await response.text();
+            console.log("Response text:", text); // Debug: see what server sent
             const res = JSON.parse(text);
             appendBot(res.answer || "⚠️ No response from server.", res.citation || '');
         } catch (e) {
