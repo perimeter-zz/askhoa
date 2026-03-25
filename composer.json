@@ -1,0 +1,12 @@
+{
+    "name": "askhoa/app",
+    "description": "AskHOA document Q&A app",
+    "type": "project",
+    "require": {
+        "php": ">=8.0",
+        "smalot/pdfparser": "^2.0"
+    },
+    "config": {
+        "vendor-dir": "vendor"
+    }
+}
