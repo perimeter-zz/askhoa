@@ -1,0 +1,29 @@
+name: Deploy to Hostinger
+
+on:
+  push:
+    branches:
+      - development
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy via rsync
+        run: |
+          sudo apt-get install -y sshpass
+          sshpass -p '${{ secrets.HOSTINGER_SSH_PASS }}' rsync -az \
+            -e "ssh -o StrictHostKeyChecking=no -p 65002" \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='.claude' \
+            --exclude='__pycache__' \
+            --exclude='test_report_*.txt' \
+            --exclude='askhoa_error.log' \
+            --exclude='tests/' \
+            ./ \
+            u789657666@212.85.29.178:~/domains/askhoa.org/public_html/
