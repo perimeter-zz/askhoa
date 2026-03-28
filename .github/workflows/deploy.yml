@@ -14,12 +14,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Deploy via rsync
-        env:
-          SSHPASS: ${{ secrets.HOSTINGER_SSH_PASS }}
         run: |
-          sudo apt-get install -y sshpass
-          sshpass -e rsync -az \
-            -e "ssh -o StrictHostKeyChecking=no -p 65002" \
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HOSTINGER_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          rsync -az \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -p 65002" \
             --exclude='.git' \
             --exclude='.github' \
             --exclude='.claude' \
